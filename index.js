@@ -7,7 +7,8 @@
 import 'dotenv/config.js';
 import express from 'express';
 import cors from 'cors';
-import { Client, Environment } from 'square';
+import pkg from 'square';
+const { SquareClient, SquareEnvironment } = pkg;
 import { v4 as uuidv4 } from 'uuid';
 
 // ============================================
@@ -33,11 +34,11 @@ if (missingVars.length > 0) {
 }
 
 // Initialize Square API client
-const squareClient = new Client({
+const squareClient = new SquareClient({
   accessToken: process.env.SQUARE_ACCESS_TOKEN,
   environment: process.env.SQUARE_ENVIRONMENT === 'production'
-    ? Environment.Production
-    : Environment.Sandbox,
+    ? SquareEnvironment.Production
+    : SquareEnvironment.Sandbox,
 });
 
 // ============================================
