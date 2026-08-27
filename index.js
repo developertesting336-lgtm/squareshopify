@@ -7,8 +7,7 @@
 import 'dotenv/config.js';
 import express from 'express';
 import cors from 'cors';
-import https from 'https';
-import http from 'http';
+import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 
 // ============================================
@@ -47,40 +46,28 @@ console.log('Square API initialized:', {
 
 // Helper function to make Square API calls
 async function squareApiCall(method, path, body = null) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(`${SQUARE_API_URL}${path}`);
-    const options = {
-      hostname: urlObj.hostname,
-      port: 443,
-      path: urlObj.pathname,
-      method: method,
-      headers: {
-        'Square-Version': '2024-01-18',
-        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    };
+  const url = `${SQUARE_API_URL}${path}`;
 
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          resolve({ status: res.statusCode, body: parsed });
-        } catch (e) {
-          reject(new Error(`Invalid JSON response: ${data}`));
-        }
-      });
-    });
+  const options = {
+    method: method,
+    headers: {
+      'Square-Version': '2024-01-18',
+      'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+  };
 
-    req.on('error', reject);
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
 
-    if (body) {
-      req.write(JSON.stringify(body));
-    }
-    req.end();
-  });
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    return { status: response.status, body: data };
+  } catch (error) {
+    throw error;
+  }
 }
 
 // ============================================
