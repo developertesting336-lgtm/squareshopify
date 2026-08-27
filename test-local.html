@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Payment Test - LOCAL</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .test-card-info {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+            font-size: 13px;
+        }
+
+        .test-card-info h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .test-card-info code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .response {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .response.show {
+            display: block;
+        }
+
+        .response-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .response-content {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .api-endpoint {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            border-left: 3px solid #10b981;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #10b981;
+        }
+
+        .status-indicator.disconnected {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .server-status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .server-status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .server-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Square Payment Test</h1>
+        <span class="badge">🏠 LOCAL TESTING</span>
+        <p class="subtitle">Test your local backend server</p>
+
+        <div class="server-status disconnected" id="serverStatus">
+            <span class="status-indicator disconnected"></span>
+            <span id="statusText">Checking local server...</span>
+        </div>
+
+        <div class="alert alert-info" id="infoAlert">
+            ℹ️ Testing with your LOCAL backend at http://localhost:8080
+        </div>
+
+        <div class="test-card-info">
+            <h3>📝 Use Test Card:</h3>
+            Card: <code>4532 0151 5928 8453</code><br>
+            Expiry: <code>12/25</code><br>
+            CVC: <code>123</code>
+        </div>
+
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-error" id="errorAlert"></div>
+        <div class="alert alert-warning" id="warningAlert"></div>
+
+        <form id="paymentForm">
+            <div class="form-group">
+                <label for="amount">Amount (in USD)</label>
+                <input
+                    type="number"
+                    id="amount"
+                    placeholder="10.00"
+                    value="10.00"
+                    step="0.01"
+                    min="0.01"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="cardNumber">Card Number</label>
+                <input
+                    type="text"
+                    id="cardNumber"
+                    placeholder="4532 0151 5928 8453"
+                    maxlength="19"
+                    required
+                >
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="expiry">Expiry (MM/YY)</label>
+                    <input
+                        type="text"
+                        id="expiry"
+                        placeholder="12/25"
+                        maxlength="5"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="cvc">CVC</label>
+                    <input
+                        type="text"
+                        id="cvc"
+                        placeholder="123"
+                        maxlength="4"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="customer@example.com"
+                    required
+                >
+            </div>
+
+            <button type="submit" id="submitBtn">
+                💳 Process Payment
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Processing payment...</span>
+            </div>
+        </form>
+
+        <div class="response" id="response">
+            <div class="response-title">✅ Payment Response:</div>
+            <div class="response-content" id="responseContent"></div>
+        </div>
+
+        <div class="api-endpoint">
+            🏠 API Endpoint: http://localhost:8080/api/payments/create
+        </div>
+    </div>
+
+    <script>
+        // ======== CONFIGURATION ========
+        const API_URL = 'http://localhost:8080/api/payments/create';
+        const HEALTH_CHECK_URL = 'http://localhost:8080/health';
+
+        // ======== DOM ELEMENTS ========
+        const form = document.getElementById('paymentForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const response = document.getElementById('response');
+        const responseContent = document.getElementById('responseContent');
+        const successAlert = document.getElementById('successAlert');
+        const errorAlert = document.getElementById('errorAlert');
+        const warningAlert = document.getElementById('warningAlert');
+        const serverStatus = document.getElementById('serverStatus');
+        const statusText = document.getElementById('statusText');
+
+        // ======== SERVER HEALTH CHECK ========
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(HEALTH_CHECK_URL, {
+                    method: 'GET',
+                    mode: 'cors',
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setServerConnected(true, `✅ Connected to local server (${data.service})`);
+                    return true;
+                } else {
+                    setServerConnected(false, '❌ Server is not responding');
+                    return false;
+                }
+            } catch (error) {
+                setServerConnected(false, `❌ Cannot connect to local server: ${error.message}`);
+                return false;
+            }
+        }
+
+        function setServerConnected(connected, message) {
+            if (connected) {
+                serverStatus.className = 'server-status connected';
+                statusText.textContent = message;
+                form.style.opacity = '1';
+                submitBtn.disabled = false;
+            } else {
+                serverStatus.className = 'server-status disconnected';
+                statusText.textContent = message;
+                form.style.opacity = '0.5';
+                submitBtn.disabled = true;
+                showWarning('⚠️ Make sure your local backend is running: node index.js');
+            }
+        }
+
+        // ======== INPUT FORMATTING ========
+        document.getElementById('cardNumber').addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\s/g, '');
+            let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formatted;
+        });
+
+        document.getElementById('expiry').addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            e.target.value = value;
+        });
+
+        document.getElementById('cvc').addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // ======== FORM SUBMISSION ========
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const amount = parseFloat(document.getElementById('amount').value);
+            const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+            const expiry = document.getElementById('expiry').value;
+            const cvc = document.getElementById('cvc').value;
+            const email = document.getElementById('email').value;
+
+            // Validation
+            if (!amount || amount <= 0) {
+                showError('Please enter a valid amount');
+                return;
+            }
+
+            if (cardNumber.length !== 16) {
+                showError('Card number must be 16 digits');
+                return;
+            }
+
+            if (expiry.length !== 5 || !expiry.includes('/')) {
+                showError('Expiry must be in MM/YY format');
+                return;
+            }
+
+            if (cvc.length < 3) {
+                showError('CVC must be 3-4 digits');
+                return;
+            }
+
+            // Show loading
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            response.classList.remove('show');
+            successAlert.classList.remove('show');
+            errorAlert.classList.remove('show');
+
+            try {
+                // Call your LOCAL backend endpoint
+                const paymentResponse = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: Math.round(amount * 100), // Convert to cents
+                        currency: 'USD',
+                        sourceId: `cnon:card_${cardNumber}`,
+                        cardDetails: {
+                            number: cardNumber,
+                            expiry: expiry,
+                            cvc: cvc
+                        },
+                        customerEmail: email
+                    })
+                });
+
+                const data = await paymentResponse.json();
+
+                if (paymentResponse.ok && data.success) {
+                    showSuccess('✅ Payment processed successfully!');
+                    showResponse('SUCCESS', data);
+                    form.reset();
+                } else {
+                    showError('❌ Payment failed: ' + (data.error || 'Unknown error'));
+                    showResponse('ERROR', data);
+                }
+            } catch (error) {
+                showError('❌ Error: ' + error.message);
+                showResponse('ERROR', { error: error.message, hint: 'Make sure your local server is running: node index.js' });
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        // ======== ALERT FUNCTIONS ========
+        function showSuccess(message) {
+            successAlert.textContent = message;
+            successAlert.classList.add('show');
+            errorAlert.classList.remove('show');
+            warningAlert.classList.remove('show');
+        }
+
+        function showError(message) {
+            errorAlert.textContent = message;
+            errorAlert.classList.add('show');
+            successAlert.classList.remove('show');
+            warningAlert.classList.remove('show');
+        }
+
+        function showWarning(message) {
+            warningAlert.textContent = message;
+            warningAlert.classList.add('show');
+        }
+
+        function showResponse(title, data) {
+            responseContent.textContent = JSON.stringify(data, null, 2);
+            response.querySelector('.response-title').textContent = title + ' Response:';
+            response.classList.add('show');
+        }
+
+        // ======== INITIALIZATION ========
+        window.addEventListener('load', () => {
+            // Pre-fill test data
+            document.getElementById('cardNumber').value = '4532 0151 5928 8453';
+            document.getElementById('expiry').value = '12/25';
+            document.getElementById('cvc').value = '123';
+            document.getElementById('email').value = 'test@example.com';
+
+            // Check server health
+            checkServerHealth();
+
+            // Re-check server every 5 seconds
+            setInterval(checkServerHealth, 5000);
+        });
+    </script>
+</body>
+</html>

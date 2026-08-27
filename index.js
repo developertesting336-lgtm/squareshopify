@@ -7,8 +7,8 @@
 import 'dotenv/config.js';
 import express from 'express';
 import cors from 'cors';
-import pkg from 'square';
-const { SquareClient, SquareEnvironment } = pkg;
+import https from 'https';
+import http from 'http';
 import { v4 as uuidv4 } from 'uuid';
 
 // ============================================
@@ -33,13 +33,55 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 
-// Initialize Square API client
-const squareClient = new SquareClient({
-  accessToken: process.env.SQUARE_ACCESS_TOKEN,
-  environment: process.env.SQUARE_ENVIRONMENT === 'production'
-    ? SquareEnvironment.Production
-    : SquareEnvironment.Sandbox,
+// Square API configuration
+const SQUARE_API_URL = process.env.SQUARE_ENVIRONMENT === 'production'
+  ? 'https://squareup.com/v2'
+  : 'https://sandbox.squareup.com/v2';
+
+const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
+
+console.log('Square API initialized:', {
+  environment: process.env.SQUARE_ENVIRONMENT,
+  url: SQUARE_API_URL
 });
+
+// Helper function to make Square API calls
+async function squareApiCall(method, path, body = null) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(`${SQUARE_API_URL}${path}`);
+    const options = {
+      hostname: urlObj.hostname,
+      port: 443,
+      path: urlObj.pathname,
+      method: method,
+      headers: {
+        'Square-Version': '2024-01-18',
+        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve({ status: res.statusCode, body: parsed });
+        } catch (e) {
+          reject(new Error(`Invalid JSON response: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
+    req.end();
+  });
+}
 
 // ============================================
 // MIDDLEWARE
@@ -98,11 +140,11 @@ app.post('/api/payments/create', async (req, res) => {
       });
     }
 
-    // Prepare payment
+    // Prepare payment body
     const paymentBody = {
-      sourceId,
-      idempotencyKey: uuidv4(),
-      amountMoney: {
+      source_id: sourceId,
+      idempotency_key: uuidv4(),
+      amount_money: {
         amount: parseInt(amount),
         currency: 'USD',
       },
@@ -110,14 +152,20 @@ app.post('/api/payments/create', async (req, res) => {
     };
 
     if (orderId) {
-      paymentBody.referenceId = orderId;
+      paymentBody.reference_id = orderId;
     }
 
     console.log('Processing payment:', { amount, orderId });
 
-    // Create payment through Square
-    const response = await squareClient.paymentsApi.createPayment(paymentBody);
-    const payment = response.result.payment;
+    // Create payment through Square API
+    const { status, body: data } = await squareApiCall('POST', '/payments', paymentBody);
+
+    if (status !== 200) {
+      const errorDetail = data.errors?.[0]?.detail || JSON.stringify(data);
+      throw new Error(`Square API error (${status}): ${errorDetail}`);
+    }
+
+    const payment = data.payment;
 
     console.log('✓ Payment created:', payment.id);
 
@@ -125,10 +173,10 @@ app.post('/api/payments/create', async (req, res) => {
       success: true,
       paymentId: payment.id,
       status: payment.status,
-      amount: payment.amountMoney.amount,
-      currency: payment.amountMoney.currency,
-      receiptUrl: payment.receiptUrl || null,
-      timestamp: payment.createdAt,
+      amount: payment.amount_money.amount,
+      currency: payment.amount_money.currency,
+      receiptUrl: payment.receipt_url || null,
+      timestamp: payment.created_at,
     });
   } catch (error) {
     console.error('❌ Payment creation failed:', error.message);
@@ -152,16 +200,29 @@ app.get('/api/payments/:paymentId', async (req, res) => {
 
     console.log('Fetching payment:', paymentId);
 
-    const response = await squareClient.paymentsApi.getPayment(paymentId);
-    const payment = response.result.payment;
+    const response = await fetch(`${SQUARE_API_URL}/payments/${paymentId}`, {
+      method: 'GET',
+      headers: {
+        'Square-Version': '2024-01-18',
+        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.errors?.[0]?.detail || 'Failed to get payment');
+    }
+
+    const payment = data.payment;
 
     res.json({
       paymentId: payment.id,
       status: payment.status,
-      amount: payment.amountMoney.amount,
-      currency: payment.amountMoney.currency,
-      created: payment.createdAt,
-      receiptUrl: payment.receiptUrl || null,
+      amount: payment.amount_money.amount,
+      currency: payment.amount_money.currency,
+      created: payment.created_at,
+      receiptUrl: payment.receipt_url || null,
     });
   } catch (error) {
     console.error('❌ Failed to get payment:', error.message);
@@ -184,11 +245,11 @@ app.post('/api/payments/:paymentId/refund', async (req, res) => {
       });
     }
 
-    // Prepare refund
+    // Prepare refund body
     const refundBody = {
-      idempotencyKey: uuidv4(),
-      paymentId,
-      amountMoney: {
+      idempotency_key: uuidv4(),
+      payment_id: paymentId,
+      amount_money: {
         amount: parseInt(amount),
         currency: 'USD',
       },
@@ -197,9 +258,24 @@ app.post('/api/payments/:paymentId/refund', async (req, res) => {
 
     console.log('Processing refund:', { paymentId, amount });
 
-    // Process refund through Square
-    const response = await squareClient.paymentsApi.refundPayment(refundBody);
-    const refund = response.result.refund;
+    // Process refund through Square API
+    const response = await fetch(`${SQUARE_API_URL}/refunds`, {
+      method: 'POST',
+      headers: {
+        'Square-Version': '2024-01-18',
+        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(refundBody),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.errors?.[0]?.detail || 'Refund failed');
+    }
+
+    const refund = data.refund;
 
     console.log('✓ Refund processed:', refund.id);
 
@@ -207,7 +283,7 @@ app.post('/api/payments/:paymentId/refund', async (req, res) => {
       success: true,
       refundId: refund.id,
       status: refund.status,
-      amount: refund.amountMoney.amount,
+      amount: refund.amount_money.amount,
     });
   } catch (error) {
     console.error('❌ Refund failed:', error.message);

@@ -1,0 +1,6 @@
+name = "Square Payment Extension"
+handle = "square-payment"
+type = "checkout_ui"
+api_version = "2024-01"
+
+[settings]
