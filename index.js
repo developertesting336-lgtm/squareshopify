@@ -74,7 +74,14 @@ async function squareApiCall(method, path, body = null) {
 // MIDDLEWARE
 // ============================================
 
-app.use(cors());
+// CORS configured for Shopify UI extensions (which use null origin in Web Workers)
+app.use(cors({
+  origin: true, // Reflects the request's origin, including null
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
